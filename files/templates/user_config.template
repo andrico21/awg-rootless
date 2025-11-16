@@ -1,0 +1,13 @@
+# ${USER_NAME}
+# CreatedAt: ${USER_CREATED_AT}
+
+[Interface]
+Address = ${USER_IP_INT}
+PrivateKey = ${USER_KEY_PRIVATE}
+DNS = ${WG_CUSTOM_DNS}
+
+[Peer]
+PublicKey = ${SERVER_KEY_PUBLIC}
+Endpoint = ${SERVER_ADDR_EXT}:${SERVER_PORT}
+PresharedKey = ${USER_PSK}
+AllowedIPs = 0.0.0.0/0, ::/0

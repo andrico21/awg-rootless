@@ -1,0 +1,6 @@
+[Interface]
+Address = ${SERVER_IP_INT}/32
+PrivateKey = ${SERVER_KEY_PRIVATE}
+ListenPort = 51820
+PostUp = iptables --append FORWARD --in-interface %i --jump ACCEPT && iptables --append FORWARD --out-interface %i --jump ACCEPT && iptables --table nat --append POSTROUTING --source ${WG_INTERNAL_SUBNET} --out-interface "${NET_IF_NAME}" --jump MASQUERADE
+PreDown = iptables --delete FORWARD --in-interface %i --jump ACCEPT && iptables --delete FORWARD --out-interface %i --jump ACCEPT && iptables --table nat --delete POSTROUTING --source ${WG_INTERNAL_SUBNET} --out-interface "${NET_IF_NAME}" --jump MASQUERADE

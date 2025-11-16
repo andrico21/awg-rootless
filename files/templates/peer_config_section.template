@@ -1,0 +1,7 @@
+# Peer configuration for ${USER_NAME}
+# CreatedAt: ${USER_CREATED_AT}
+[Peer]
+PublicKey = ${USER_KEY_PUBLIC}
+PresharedKey = ${USER_PSK}
+PersistentKeepalive = ${WG_KEEPALIVE_SEC}
+AllowedIPs = ${USER_IP_INT}
