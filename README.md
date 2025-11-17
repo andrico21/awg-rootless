@@ -20,7 +20,7 @@ podman pull amneziawg-rootless:latest
 podman volume create amneziawg-cfg
 
 podman run --detach --name awg-rootless --publish 3400:51820/udp -v amneziawg-cfg:/etc/amnezia/amneziawg/ \
- --cap-add net_admin --cap-add net_bind_service --sysctl net.ipv4.conf.all.src_valid_mark=1 --sysctl net.ipv4.ip_forward=1 \
+ --cap-add net_admin --sysctl net.ipv4.conf.all.src_valid_mark=1 --sysctl net.ipv4.ip_forward=1 \
  --env SERVERURL="some.lab.host" SERVERPORT="4430" amneziawg-rootless:latest
 
 podman exec -it awg-rootless /bin/bash
@@ -72,7 +72,7 @@ podman volume create amneziawg-cfg
 
 podman run --detach --name awg-rootless --publish 4450:51820/udp \
  --mount=type=volume,source=amnez-test,destination=/etc/amnezia/amneziawg/,readonly=false,nodev,noexec,nosuid,chown=true \
- --cap-drop all --cap-add net_admin --cap-add net_bind_service --security-opt no-new-privileges --read-only \
+ --cap-drop all --cap-add net_admin --security-opt no-new-privileges --read-only \
  --sysctl net.ipv4.conf.all.src_valid_mark=1 --sysctl net.ipv4.ip_forward=1 \
  --env SERVERURL="myserver.google.com" --env SERVERPORT=4450 --env DNS_BUILTIN="true" \
  --env WG_INTERNAL_SUBNET="192.168.254.0/24" --env WG_CUSTOM_MTU=1100 amneziawg-rootless:latest
@@ -126,7 +126,7 @@ Sysctl=net.ipv4.conf.all.src_valid_mark=1 net.ipv4.ip_forward=1
 Mount=type=volume,source=amnez-test,destination=/etc/amnezia/amneziawg/,readonly=false,nodev,noexec,nosuid,chown=true
 
 # security
-AddCapability=net_admin net_bind_service
+AddCapability=net_admin
 DropCapability=all
 NoNewPrivileges=true
 ReadOnly=true
@@ -150,6 +150,34 @@ systemctl --user daemon-reload && systemctl --user status awg-rootless.service
 systemctl --user start awg-rootless.service
 systemctl --user status awg-rootless.service
 ```
+<details>
+  <summary>User mapping and caps demo: root vs rootless host user</summary>
+  
+  Running under host root - test container internal user is mapped to host rootless user's uid, only NET_ADMIN capability is added for user namespace:
+  ```bash
+  root@awg-test:~# podman top awg-rootless comm args pid hpid user huser group hgroup capeff capamb capbnd capinh capprm
+  COMMAND        COMMAND                               PID         HPID        USER        HUSER       GROUP       HGROUP      EFFECTIVE CAPS  AMBIENT CAPS  BOUNDING CAPS  INHERITED CAPS  PERMITTED CAPS
+  entrypoint.sh  /bin/sh /entrypoint.sh                1           20863       awg         65500       awg         65500       NET_ADMIN       NET_ADMIN     NET_ADMIN      NET_ADMIN       NET_ADMIN
+  coredns        coredns -conf /etc/coredns/Corefile   2           20865       awg         65500       awg         65500       NET_ADMIN       NET_ADMIN     NET_ADMIN      NET_ADMIN       NET_ADMIN
+  entrypoint.sh  /bin/sh /entrypoint.sh                3           20866       awg         65500       awg         65500       NET_ADMIN       NET_ADMIN     NET_ADMIN      NET_ADMIN       NET_ADMIN
+  entrypoint.sh  /bin/sh /entrypoint.sh                5           20868       awg         65500       awg         65500       NET_ADMIN       NET_ADMIN     NET_ADMIN      NET_ADMIN       NET_ADMIN
+  sleep          sleep 86400                           15          20878       awg         65500       awg         65500       NET_ADMIN       NET_ADMIN     NET_ADMIN      NET_ADMIN       NET_ADMIN
+  sleep          sleep 86400                           18          20881       awg         65500       awg         65500       NET_ADMIN       NET_ADMIN     NET_ADMIN      NET_ADMIN       NET_ADMIN
+  ```
+
+Running under host rootless user - container internal user is mapped to host rootless user' subuid range, only NET_ADMIN capability is added for user namespace
+  ```bash
+  podman top awg-rootless args pid hpid user huser group hgroup capeff capamb capbnd capinh capprm
+  COMMAND                               PID         HPID        USER        HUSER       GROUP       HGROUP      EFFECTIVE CAPS  AMBIENT CAPS  BOUNDING CAPS  INHERITED CAPS  PERMITTED CAPS
+  /bin/sh /entrypoint.sh                1           20399       awg         231035      awg         231035      NET_ADMIN       NET_ADMIN     NET_ADMIN      NET_ADMIN       NET_ADMIN
+  coredns -conf /etc/coredns/Corefile   2           20401       awg         231035      awg         231035      NET_ADMIN       NET_ADMIN     NET_ADMIN      NET_ADMIN       NET_ADMIN
+  /bin/sh /entrypoint.sh                3           20402       awg         231035      awg         231035      NET_ADMIN       NET_ADMIN     NET_ADMIN      NET_ADMIN       NET_ADMIN
+  /bin/sh /entrypoint.sh                6           20405       awg         231035      awg         231035      NET_ADMIN       NET_ADMIN     NET_ADMIN      NET_ADMIN       NET_ADMIN
+  sleep 86400                           14          20413       awg         231035      awg         231035      NET_ADMIN       NET_ADMIN     NET_ADMIN      NET_ADMIN       NET_ADMIN
+  sleep 86400                           17          20416       awg         231035      awg         231035      NET_ADMIN       NET_ADMIN     NET_ADMIN      NET_ADMIN       NET_ADMIN
+  ```
+</details>
+
 ### Additional features
 Automatic reusing of IP addresses for new users if there're released ones after user deletion.
 
@@ -167,6 +195,7 @@ podman exec awg-rootless awg_users2json.sh
 ```
 Pre-generated seccomp-profile is available in seccomp-profiles/ directory - still in beta, but so far no problems.
 Copy to `/usr/share/containers/awg_server_coredns.json`, then specify it for container using `--security-opt seccomp=/usr/share/containers/awg_server_coredns.json` (or use `SeccompProfile` directive in systemd container unit)
+
 ### Known issues
 I spent several days to make it working with `pasta`/`passt`, but eventually discovered that it just doesn't work properly with Ubuntu 24.04's stock `pasta`, but works with the latest one compiled from sources - see issue https://github.com/containers/podman/issues/27541
 ```bash
