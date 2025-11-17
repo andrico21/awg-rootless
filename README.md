@@ -20,7 +20,7 @@ podman pull amneziawg-rootless:latest
 podman volume create amneziawg-cfg
 
 podman run --detach --name awg-rootless --publish 3400:51820/udp -v amneziawg-cfg:/etc/amnezia/amneziawg/ \
- --cap-add net_admin --cap-add net_bind_service --sysctl net.ipv4.conf.all.src_valid_mark=1 --sysctl net.ipv4.ip_forward=1 \
+ --cap-add net_admin --sysctl net.ipv4.conf.all.src_valid_mark=1 --sysctl net.ipv4.ip_forward=1 \
  --env SERVERURL="some.lab.host" SERVERPORT="4430" amneziawg-rootless:latest
 
 podman exec -it awg-rootless /bin/bash
@@ -72,7 +72,7 @@ podman volume create amneziawg-cfg
 
 podman run --detach --name awg-rootless --publish 4450:51820/udp \
  --mount=type=volume,source=amnez-test,destination=/etc/amnezia/amneziawg/,readonly=false,nodev,noexec,nosuid,chown=true \
- --cap-drop all --cap-add net_admin --cap-add net_bind_service --security-opt no-new-privileges --read-only \
+ --cap-drop all --cap-add net_admin --security-opt no-new-privileges --read-only \
  --sysctl net.ipv4.conf.all.src_valid_mark=1 --sysctl net.ipv4.ip_forward=1 \
  --env SERVERURL="myserver.google.com" --env SERVERPORT=4450 --env DNS_BUILTIN="true" \
  --env WG_INTERNAL_SUBNET="192.168.254.0/24" --env WG_CUSTOM_MTU=1100 amneziawg-rootless:latest
@@ -126,7 +126,7 @@ Sysctl=net.ipv4.conf.all.src_valid_mark=1 net.ipv4.ip_forward=1
 Mount=type=volume,source=amnez-test,destination=/etc/amnezia/amneziawg/,readonly=false,nodev,noexec,nosuid,chown=true
 
 # security
-AddCapability=net_admin net_bind_service
+AddCapability=net_admin
 DropCapability=all
 NoNewPrivileges=true
 ReadOnly=true
