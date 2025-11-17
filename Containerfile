@@ -26,12 +26,12 @@ COPY --chmod=0550 --from=builder "${build_dir}"/artifacts/usr/bin/* ${WG_APP_DIR
 #COPY --chmod=0550 --from=builder "${build_dir}"/src/wg-quick/linux.bash /usr/local/bin/awg-quick
 
 RUN apk update && apk upgrade \
- && apk add --no-cache bash coredns coreutils iptables tzdata libcap gettext libqrencode-tools jq \
+ && apk add --no-cache bash coredns coreutils iptables tzdata gettext libqrencode-tools jq \
  && apk cache clean && rm -rf /var/cache/apk/* \
  && adduser "${rootless_username}" -D -u ${rootless_uid} -s /bin/false \
  && mkdir -p -m 755 "${WG_TPL_DIR}" && mkdir -p -m 750 "${WG_SERVER_CFG_DIR}"/peers "${WG_SERVER_CFG_DIR}"/backup "${WG_APP_DIR}" \
- && chown "${rootless_username}":"${rootless_username}" -R /etc/amnezia/ "${WG_APP_DIR}" && setcap cap_net_admin=eip "${WG_APP_DIR}"/awg \
- && setcap cap_net_admin=eip $(readlink -f /usr/sbin/iptables) && apk del --purge libcap && mkdir -p -m 555 /artifacts/share/man/man8/
+ && chown "${rootless_username}":"${rootless_username}" -R /etc/amnezia/ "${WG_APP_DIR}" \
+ && mkdir -p -m 555 /artifacts/share/man/man8/
 
 COPY --chmod=0444 files/templates/* ${WG_TPL_DIR}
 COPY --chmod=0550 --chown="${rootless_username}":"${rootless_username}" files/awg_scripts/* "${WG_APP_DIR}/"
