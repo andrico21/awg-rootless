@@ -17,6 +17,11 @@ FROM alpine:edge
 ARG rootless_username=awg rootless_uid=65500
 ARG wgutils_url build_dir
 
+LABEL io.containers.capabilities="NET_ADMIN" \
+      org.opencontainers.image.source="https://github.com/andrico21/awg-rootless" \
+      org.opencontainers.image.version="1.0" \
+      org.opencontainers.image.title="AmneziaWG rootless server"
+
 ENV WG_APP_DIR="/opt/amneziawg/scripts" WG_TPL_DIR="/etc/amnezia/templates"
 ENV WG_SERVER_CFG_DIR="/etc/amnezia/amneziawg" WG_SERVER_CFG_FILE=awg0.conf WG_INTERNAL_SUBNET="10.12.12.0/24" DNS_BUILTIN="false"
 ENV PATH="${WG_APP_DIR}:${PATH}"
