@@ -28,7 +28,7 @@ menu.sh
 ```bash
 git clone https://github.com/andrico21/awg-rootless.git
 cd awg-rootless
-podman build . -t awneziawg-rootless --no-cache --squash-all
+podman build . -t amneziawg-rootless --no-cache --squash-all
 podman image ls | grep amneziawg-rootless
 ```
 ### Пререквизиты
