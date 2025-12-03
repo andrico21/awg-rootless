@@ -30,7 +30,7 @@ menu.sh
 ```
 or build an image by yourself:
 ```bash
-git clone https://github.com/andrico21/awneziawg-rootless.git
+git clone https://github.com/andrico21/awg-rootless.git
 cd awneziawg-rootless
 podman build . -t awneziawg-rootless --no-cache --squash-all
 podman image ls | grep amneziawg-rootless
