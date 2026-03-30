@@ -200,20 +200,88 @@ This is a raw packet captured from Wireshark, wrapped in a single `<b>` tag. No 
 
 ---
 
-## Protocol Suitability for Mimicry
+## Protocol Signatures Reference
 
-**Good choices** (UDP-based, common, high traffic volume):
+### Protocol Suitability
 
-- DNS - universal, works everywhere
-- QUIC - modern HTTP/3, growing popularity
-- SIP - VoIP calls, lots of legitimate traffic
-- STUN - WebRTC, video calls
+Only UDP-based protocols are valid targets (AmneziaWG runs over UDP). Avoid TCP-based (HTTP/1.1, SMTP, FTP), exotic/rare protocols, and packets shorter than 32 bytes.
 
-**Bad choices:**
+| Protocol | Port(s) | Suitability | Why |
+|----------|---------|-------------|-----|
+| QUIC v1/v2 | 443 | Excellent | HTTP/3 backbone, massive traffic volume, encrypted by design so random payload looks natural |
+| DNS | 53 | Excellent | Universal, never blocked, present on every network |
+| STUN | 3478, 19302 | Good | WebRTC/video calls, common in corporate and consumer networks |
+| DTLS 1.2 | 443, 4433 | Good | Encrypted UDP (used by WebRTC, IoT), growing adoption |
+| SIP | 5060, 5061 | Good | VoIP calls, lots of legitimate traffic especially in enterprise |
+| RTP | 5004, 16384-32767 | Good | Real-time media (audio/video streams), high volume during calls, large packets normal |
+| IKEv2 | 500 | Good | IPsec key exchange, common in corporate VPNs, always allowed through enterprise firewalls |
+| GTP-U | 2152 | Fair | Mobile/cellular tunneling, very common on mobile carrier networks, less so on Wi-Fi |
+| NTP v4 | 123 | Fair | Time sync, ubiquitous but fixed 48-byte packets and low frequency - small signature |
+| CoAP | 5683 | Fair | IoT protocol, growing but still niche - best in IoT-heavy environments |
+| RADIUS | 1812 | Fair | Authentication protocol, common in enterprise but rare on consumer networks |
+| OpenVPN UDP | 1194 | Poor | Defeats the purpose - still a VPN signature |
 
-- TCP-based protocols (HTTP/1.1, SMTP, FTP) - AmneziaWG is UDP-only
-- Exotic/rare protocols - low traffic volume makes them suspicious
-- Very short packets (< 32 bytes) - too small to be credible
+### Protocol Signature Packets (i1-i5 values)
+
+Ready-to-use CPS values per protocol. Empty cells = not needed (leave parameter unset).
+
+| Protocol | Best Port | i1 | i2 | i3 | i4 | i5 |
+|----------|-----------|----|----|----|----|-----|
+| QUIC v1 | 443 | `<b 0xc700000001><rc 8><t><r 100>` | `<b 0xc700000001><rc 8><t><r 300>` | | | |
+| QUIC v2 | 443 | `<b 0xd7709a50c4><rc 8><t><r 100>` | `<b 0xd7709a50c4><rc 8><t><r 300>` | | | |
+| DNS | 53, 5353 | `<b 0x0100000100000000000003777777076578616d706c6503636f6d00000100><t><r 50>` | `<b 0x0100000100000000000006676f6f676c6503636f6d0000010001><t><r 40>` | | | |
+| STUN | 3478, 19302 | `<b 0x000100002112a442><r 12><r 100>` | | | | |
+| DTLS 1.2 | 443, 4433 | `<b 0x16fefd0000000000000000><r 2><b 0x01><r 3><b 0xfefd><r 32><b 0x00><rc 4><r 100>` | | | | |
+| SIP | 5060 | `<b 0x524547495354455220736970><rc 12><b 0x3a><rd 4><b 0x20534950><r 80>` | | | | |
+| NTP v4 | 123 | `<b 0x23000a00><r 40><t>` | | | | |
+| RTP (media) | 5004, 16384-32767 | `<b 0x8060><r 2><t><r 4><r 100>` | `<b 0x8060><r 2><t><r 4><r 200>` | | | |
+| IKEv2 (IPsec) | 500 | `<r 8><b 0x00000000000000002120220800000000><r 4><r 200>` | | | | |
+| GTP-U (mobile) | 2152 | `<b 0x30ff><r 2><r 4><r 100>` | | | | |
+| CoAP (IoT) | 5683 | `<b 0x4001><r 2><rc 4><r 50>` | | | | |
+| RADIUS | 1812 | `<b 0x01><r 1><b 0x0032><r 16><r 30>` | | | | |
+
+### Magic Bytes Cheat Sheet
+
+What makes DPI classify each packet:
+
+| Protocol | Key hex bytes | Meaning |
+|----------|--------------|---------|
+| QUIC v1 | `0xc700000001` | `0xc7` = Long Header + Initial type, `0x00000001` = QUIC version 1 |
+| QUIC v2 | `0xd7709a50c4` | `0xd7` = Long Header + Initial type (v2 bit layout), `0x709a50c4` = QUIC version 2 (RFC 9369) |
+| DNS | `0x0100000100000000000003777777...` | Transaction ID + flags `0x0100` (standard query, recursion desired) + 1 question + QNAME in label format |
+| STUN | `0x000100002112a442` | `0x0001` = Binding Request, `0x0000` = msg length, `0x2112a442` = STUN magic cookie (RFC 5389, always fixed) |
+| DTLS 1.2 | `0x16fefd` | `0x16` = Handshake content type, `0xfefd` = DTLS 1.2 version (inverted numbering) |
+| SIP | `0x524547495354455220736970` | ASCII for `REGISTER sip` |
+| NTP v4 | `0x23` | `0x23` = LI=0 (no warning), VN=4 (version 4), Mode=3 (client). Fixed 48-byte packet. |
+| RTP | `0x8060` | `0x80` = V=2, no Padding/Extension/CSRC. `0x60` = PT 96 (dynamic payload, typical for video/audio). |
+| IKEv2 | `0x00000000000000002120220800000000` | 8-byte zero Responder SPI (initial exchange), `0x21` = Next Payload: SA, `0x20` = IKEv2, `0x22` = IKE_SA_INIT, `0x08` = Initiator flag |
+| GTP-U | `0x30ff` | `0x30` = Version 1, Protocol Type=1, no extensions. `0xff` = G-PDU message type (encapsulated user data). |
+| CoAP | `0x4001` | `0x40` = Ver=1, Type=CON (confirmable), TKL=0. `0x01` = Code 0.01 (GET method). |
+| RADIUS | `0x01` | `0x01` = Code: Access-Request. Followed by 1-byte ID, 2-byte length, 16-byte authenticator. |
+
+### Ready-to-Use Configuration Sets
+
+Three complete parameter sets. All H ranges are non-overlapping. Copy as-is for both client and server.
+
+| Parameter | Set A: QUIC (recommended) | Set B: DNS (max compat) | Set C: STUN (video cover) |
+|-----------|--------------------------|------------------------|--------------------------|
+| Jc | 5 | 3 | 4 |
+| Jmin | 50 | 40 | 60 |
+| Jmax | 500 | 250 | 800 |
+| S1 | 68 | 40 | 56 |
+| S2 | 149 | 80 | 120 |
+| S3 | 32 | 16 | 24 |
+| S4 | 8 | 4 | 12 |
+| H1 | 471800590-471800690 | 100000000-100000200 | 700000000-700000500 |
+| H2 | 1246894907-1246895000 | 200000000-200000200 | 800000000-800000500 |
+| H3 | 923637689-923637690 | 300000000-300000050 | 900000000-900000010 |
+| H4 | 1769581055-1869581055 | 400000000-500000000 | 1000000000-1100000000 |
+| i1 | `<b 0xc700000001><rc 8><t><r 100>` | `<b 0x0100000100000000000003777777076578616d706c6503636f6d00000100><t><r 50>` | `<b 0x000100002112a442><r 12><r 100>` |
+| i2 | `<b 0xc700000001><rc 8><t><r 300>` | | |
+| i3 | | | |
+| i4 | | | |
+| i5 | | | |
+| Server port | 443 | 53 or 5353 | 3478 or 19302 |
 
 ---
 
