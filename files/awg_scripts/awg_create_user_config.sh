@@ -8,7 +8,7 @@ export USER_NAME="${1:-TestUser}"
 
 name_regex='^[[:alnum:]_!:@()-]{1,128}$'
 if [[ ! "${USER_NAME}" =~ ${name_regex} ]]; then
-  echo "Error: user name must be 1–128 chars, allowed: A–Z, a–z, 0–9, '_', '-', '@', ':', '!', '(', ')'" >&2
+  echo "Error: user name must be 1-128 chars, allowed: A-Z, a-z, 0-9, '_', '-', '@', ':', '!', '(', ')'" >&2
   exit 1
 fi
 

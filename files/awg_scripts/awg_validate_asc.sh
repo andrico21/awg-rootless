@@ -140,8 +140,7 @@ validate_asc_i_values() {
   local i_validated=()
   local idx
   for idx in 1 2 3 4 5; do
-    local varname="I${idx}"
-    local val="${!varname:-}"
+    local val="${!idx:-}"
     if [ -n "${val}" ]; then
       # Must not contain newlines (would break config file format)
       if [[ "${val}" == *$'\n'* ]]; then
@@ -160,4 +159,4 @@ validate_asc_i_values() {
 validate_asc_jitter_params "${ASC_Jc}" "${ASC_Jmin}" "${ASC_Jmax}"
 validate_asc_s_values "${ASC_S1}" "${ASC_S2}" "${ASC_S3:-}" "${ASC_S4:-}"
 validate_asc_h_values "${ASC_H1}" "${ASC_H2}" "${ASC_H3}" "${ASC_H4}"
-I1="${ASC_I1:-}" I2="${ASC_I2:-}" I3="${ASC_I3:-}" I4="${ASC_I4:-}" I5="${ASC_I5:-}" validate_asc_i_values
+validate_asc_i_values "${ASC_I1:-}" "${ASC_I2:-}" "${ASC_I3:-}" "${ASC_I4:-}" "${ASC_I5:-}"
