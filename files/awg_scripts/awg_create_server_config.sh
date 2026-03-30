@@ -35,13 +35,21 @@ ASC_Jmin="${ASC_Jmin:=50}"
 ASC_Jmax="${ASC_Jmax:=1000}"
 ASC_S1="${ASC_S1:=15}"
 ASC_S2="${ASC_S2:=150}"
+ASC_S3="${ASC_S3:=}"
+ASC_S4="${ASC_S4:=}"
 ASC_H1="${ASC_H1:=1106457265}"
 ASC_H2="${ASC_H2:=249455488}"
 ASC_H3="${ASC_H3:=1209847463}"
 ASC_H4="${ASC_H4:=1646644382}"
+ASC_I1="${ASC_I1:=}"
+ASC_I2="${ASC_I2:=}"
+ASC_I3="${ASC_I3:=}"
+ASC_I4="${ASC_I4:=}"
+ASC_I5="${ASC_I5:=}"
 
 # check values supplied: exit with proper comments if wrong
-WG_CUSTOM_MTU="${WG_CUSTOM_MTU}" awg_validate_asc.sh "${ASC_Jc}" "${ASC_Jmin}" "${ASC_Jmax}" "${ASC_S1}" "${ASC_S2}" "${ASC_H1}" "${ASC_H2}" "${ASC_H3}" "${ASC_H4}"
+export ASC_Jc ASC_Jmin ASC_Jmax ASC_S1 ASC_S2 ASC_S3 ASC_S4 ASC_H1 ASC_H2 ASC_H3 ASC_H4 ASC_I1 ASC_I2 ASC_I3 ASC_I4 ASC_I5
+WG_CUSTOM_MTU="${WG_CUSTOM_MTU}" awg_validate_asc.sh
 
 read -r -d '' ASC_BLOCK <<EOF
 Jc = ${ASC_Jc}
@@ -54,6 +62,15 @@ H2 = ${ASC_H2}
 H3 = ${ASC_H3}
 H4 = ${ASC_H4}
 EOF
+
+# Append optional new parameters only when set
+[ -n "${ASC_S3}" ] && ASC_BLOCK="${ASC_BLOCK}"$'\n'"S3 = ${ASC_S3}"
+[ -n "${ASC_S4}" ] && ASC_BLOCK="${ASC_BLOCK}"$'\n'"S4 = ${ASC_S4}"
+[ -n "${ASC_I1}" ] && ASC_BLOCK="${ASC_BLOCK}"$'\n'"I1 = ${ASC_I1}"
+[ -n "${ASC_I2}" ] && ASC_BLOCK="${ASC_BLOCK}"$'\n'"I2 = ${ASC_I2}"
+[ -n "${ASC_I3}" ] && ASC_BLOCK="${ASC_BLOCK}"$'\n'"I3 = ${ASC_I3}"
+[ -n "${ASC_I4}" ] && ASC_BLOCK="${ASC_BLOCK}"$'\n'"I4 = ${ASC_I4}"
+[ -n "${ASC_I5}" ] && ASC_BLOCK="${ASC_BLOCK}"$'\n'"I5 = ${ASC_I5}"
 
 [ -n "${WG_CUSTOM_MTU:-}" ] && { ! printf '%s' "${WG_CUSTOM_MTU}" | grep -Eq '^[0-9]+$' || [ "${WG_CUSTOM_MTU}" -lt 576 ] || [ "${WG_CUSTOM_MTU}" -gt 9216 ]; } && { echo "Error: invalid MTU (${WG_CUSTOM_MTU}); must be between 576 and 9216 bytes." >&2; exit 2; }
 

@@ -46,6 +46,11 @@ podman image ls | grep amneziawg-rootless
 - `SERVERURL` (string): your public server name, reflected in user configs
 - `SERVERPORT` (string): your public server AWG-port, reflected in user configs
 - Advanced security configuration parameters (optional, AmneziaWG-specific): `ASC_Jc`, `ASC_Jmin`, `ASC_Jmax`, `ASC_S1`, `ASC_S2`, `ASC_H1`, `ASC_H2`, `ASC_H3`, `ASC_H4`. If not defined - hardcoded default values are used. There's a validation procedure inside to maintain logic described in https://docs.amnezia.org/documentation/amnezia-wg/ document. In case of changing this group of parameters you have to regenerate server configuration.
+- Additional AWG parameters (optional, all empty by default - omitted from config when not set):
+  - `ASC_S3` (integer, 0-65535): cookie reply packet junk size
+  - `ASC_S4` (integer, 0-65535): transport packet junk size
+  - `ASC_I1` .. `ASC_I5` (string): obfuscation chain specs - tag-based format, passed to AWG daemon as-is
+- H1-H4 format: both legacy integer values and new range spec format (`N-N`, e.g. `1000-2000`) are accepted
 - `WG_INTERNAL_SUBNET` (optional, CIDR string): you can define custom tunnel-subnet - server configuration reset is required to apply new network settings
 - `WG_CUSTOM_DNS` (optional, string): if not specified - container address will be used for new user configs. But it's possible to specify DNS servers like "8.8.8.8,1.1.1.1"
 - `DNS_BUILTIN` (optional, string): if `true` - start builtin coredns server, `false` by default.
