@@ -219,6 +219,25 @@ Only UDP-based protocols are valid targets (AmneziaWG runs over UDP). Avoid TCP-
 | NTP v4 | 123 | Fair | Time sync, ubiquitous but fixed 48-byte packets and low frequency - small signature |
 | CoAP | 5683 | Fair | IoT protocol, growing but still niche - best in IoT-heavy environments |
 | RADIUS | 1812 | Fair | Authentication protocol, common in enterprise but rare on consumer networks |
+| SRT (live stream) | 9000, 9001 | Good | OBS Studio, FFmpeg, Haivision live streaming. UDP-based, encrypted payload expected, large packets normal. Growing fast in broadcast/streaming. |
+| MPEG-TS over UDP | 1234, 5000-5999 | Good | Classic IPTV delivery, live TV. Very high traffic volume on carrier/ISP networks. Distinctive 0x47 sync byte every 188 bytes. |
+| RTCP | 5005, odd ports | Fair | RTP Control Protocol, always paired with RTP on the next port. Small packets, low frequency - best combined with RTP on adjacent port. |
+| TURN | 3478 | Good | STUN-based relay traversal (RFC 5766). Same magic cookie as STUN but Allocate request type. Common where direct P2P fails. |
+| RTP Video (H.264) | 16384-32767 | Good | Video call media stream with dynamic PT 96. Marker bit set signals end-of-frame. Very high volume during calls, large packets. Indistinguishable from Zoom/Teams/Meet media. |
+| RTP Audio (Opus) | 16384-32767 | Good | Audio call stream, PT 111 (Opus codec). Standard in all WebRTC - Discord, Telegram, WhatsApp, browser calls. Small frequent packets (~50/sec). |
+| RTP Audio (G.711) | 16384-32767 | Good | Classic telephony audio, PT 0 (PCMU/G.711). Standard on SIP phones, PBX systems, enterprise VoIP. Fixed 160-byte payload at 50pps. |
+| SRTP/SRTCP | 16384-32767 | Good | Encrypted RTP/RTCP (RFC 3711). Same header as RTP but with 10-byte HMAC auth tag appended. Used by all modern WebRTC (Chrome, Firefox, Safari). DPI cannot distinguish from plain RTP by header. |
+| ZRTP | 5004, 5060 | Good | End-to-end VoIP key exchange (RFC 6189). Precedes SRTP session. Used by Signal, Opal, Ozone. Distinctive `0x505a` preamble + `ZRTP` magic cookie. |
+| SIP INVITE | 5060 | Good | VoIP call initiation (vs REGISTER for login). ASCII-based, extremely common on enterprise and carrier networks. |
+| Zoom media | 8801-8810 | Fair | Zoom uses RTP internally on ports 8801-8810. Proprietary framing, but outer header looks like standard RTP. Use RTP Video signature on these ports. |
+| WebRTC bundle | 443, 3478 | Excellent | Modern video calls multiplex STUN+DTLS+SRTP on a single port. Sending STUN then DTLS as i1+i2 perfectly mimics a real WebRTC session setup. Best stealth for video call cover. |
+| Steam A2S Query | 27015-27050 | Good | Valve Source Engine server query. Extremely common - CS2, Dota 2, TF2, Rust, ARK. Distinctive `0xFFFFFFFF54` header. High traffic on gaming networks. |
+| ENet (game netcode) | 7777-7790 | Good | Used by Minecraft (Bedrock), Factorio, many Unity/Unreal games. Lightweight reliable UDP. Ubiquitous in multiplayer gaming. |
+| BT UDP Tracker | 6881, 80, 1337 | Good | BitTorrent UDP tracker connect handshake (BEP 15). Magic constant `0x41727101980`. Massive worldwide traffic volume - one of the most common UDP protocols on the internet. |
+| BT DHT (KRPC) | 6881, dynamic | Good | BitTorrent Distributed Hash Table (BEP 5). Bencoded dictionaries over UDP. Enormous traffic volume from all torrent clients. |
+| uTP (BitTorrent) | dynamic | Good | Micro Transport Protocol (BEP 29). UDP-based transport used by qBittorrent, Transmission, Deluge. Delay-based congestion control. Very high traffic volume. |
+| Yandex Telemost | 443, 3478 | Good | Uses standard WebRTC internally (STUN+DTLS+SRTP). Use WebRTC bundle signature on port 443. |
+| VK Calls / MAX | 443, 3478 | Good | Uses standard WebRTC internally. Use WebRTC bundle signature. Same applies to Telegram calls, WhatsApp calls, Discord voice. |
 | OpenVPN UDP | 1194 | Poor | Defeats the purpose - still a VPN signature |
 
 ### Protocol Signature Packets (i1-i5 values)
@@ -239,6 +258,22 @@ Ready-to-use CPS values per protocol. Empty cells = not needed (leave parameter 
 | GTP-U (mobile) | 2152 | `<b 0x30ff><r 2><r 4><r 100>` | | | | |
 | CoAP (IoT) | 5683 | `<b 0x4001><r 2><rc 4><r 50>` | | | | |
 | RADIUS | 1812 | `<b 0x01><r 1><b 0x0032><r 16><r 30>` | | | | |
+| SRT (live stream) | 9000 | `<b 0x80000000><r 4><t><b 0x00000000><b 0x00000004><r 4><r 100>` | `<b 0x80000000><r 4><t><b 0x00000000><b 0x00000005><r 4><r 80>` | | | |
+| MPEG-TS / IPTV | 1234, 5000 | `<b 0x471fff10><r 184><b 0x471fff10><r 184><b 0x471fff10><r 184>` | | | | |
+| RTCP | 5005 | `<b 0x80c9><r 2><r 4><r 60>` | | | | |
+| TURN (relay) | 3478 | `<b 0x000300002112a442><r 12><r 100>` | | | | |
+| RTP Video (H.264) | 16384-32767 | `<b 0x80e0><r 2><t><r 4><r 400>` | `<b 0x8060><r 2><t><r 4><r 800>` | | | |
+| RTP Audio (Opus) | 16384-32767 | `<b 0x80ef><r 2><t><r 4><r 80>` | `<b 0x806f><r 2><t><r 4><r 80>` | | | |
+| RTP Audio (G.711) | 16384-32767 | `<b 0x8080><r 2><t><r 4><r 160>` | `<b 0x8000><r 2><t><r 4><r 160>` | | | |
+| SRTP (encrypted) | 16384-32767 | `<b 0x80e0><r 2><t><r 4><r 400><r 10>` | `<b 0x8060><r 2><t><r 4><r 800><r 10>` | | | |
+| ZRTP (key exchange) | 5004 | `<b 0x10005a525450><r 2><r 4><b 0x48656c6c6f202020><r 76>` | | | | |
+| SIP INVITE | 5060 | `<b 0x494e5649544520736970><rc 12><b 0x3a><rd 4><b 0x20534950><r 80>` | | | | |
+| WebRTC bundle | 443, 3478 | `<b 0x000100002112a442><r 12><r 50>` | `<b 0x16fefd0000000000000000><r 2><b 0x01><r 3><b 0xfefd><r 32><b 0x00><rc 4><r 100>` | `<b 0x80e0><r 2><t><r 4><r 200>` | | |
+| Steam A2S Query | 27015 | `<b 0xffffffff54536f7572636520456e67696e6520517565727900><r 50>` | | | | |
+| ENet connect | 7777 | `<b 0xffff0000><t><b 0x0c><b 0x02><r 2><b 0x00><r 1><r 2><r 2><b 0xffff><r 4><r 4><r 100>` | | | | |
+| BT UDP Tracker | 6881, 1337 | `<b 0x0000041727101980><b 0x00000000><r 4><r 50>` | | | | |
+| BT DHT ping | 6881 | `<b 0x64313a6164323a696432303a><r 20><b 0x65313a71343a70696e67313a74323a><r 2><b 0x313a79313a7165>` | | | | |
+| uTP SYN | dynamic | `<b 0x41000000><r 2><t><r 4><r 4><r 2><r 50>` | | | | |
 
 ### Magic Bytes Cheat Sheet
 
@@ -258,10 +293,26 @@ What makes DPI classify each packet:
 | GTP-U | `0x30ff` | `0x30` = Version 1, Protocol Type=1, no extensions. `0xff` = G-PDU message type (encapsulated user data). |
 | CoAP | `0x4001` | `0x40` = Ver=1, Type=CON (confirmable), TKL=0. `0x01` = Code 0.01 (GET method). |
 | RADIUS | `0x01` | `0x01` = Code: Access-Request. Followed by 1-byte ID, 2-byte length, 16-byte authenticator. |
+| SRT | `0x80000000` | Bit 0 = 1 (control packet), Control Type = `0x0000` (Handshake), Subtype = `0x0000`. Followed by 4-byte type-specific info, 4-byte timestamp, 4-byte Destination Socket ID (0x00000000 for induction). Then CIF with version=4 (`0x00000004`, UDT-compatible) or version=5 (`0x00000005`, SRT-native). |
+| MPEG-TS | `0x47` | Sync byte, always `0x47` at the start of every 188-byte Transport Stream packet. `0x1fff` = null PID (padding/stuffing). `0x10` = has payload, no adaptation field. Multiple TS packets per UDP datagram (typically 7 = 1316 bytes). |
+| RTCP | `0x80c9` | `0x80` = V=2, no padding, Reception Report count=0. `0xc9` = Packet Type 201 (Receiver Report). Alternative: `0x80c8` for Sender Report (PT=200). |
+| TURN | `0x000300002112a442` | `0x0003` = Allocate Request (RFC 5766), `0x0000` = msg length, `0x2112a442` = same STUN magic cookie. Structurally identical to STUN but different message type. |
+| RTP Video (H.264) | `0x80e0` / `0x8060` | `0x80` = V=2, no Padding/Extension/CSRC. `0xe0` = Marker bit set + PT 96 (end of video frame). `0x60` = no Marker + PT 96 (mid-frame packet). Followed by 2-byte seq, 4-byte timestamp, 4-byte SSRC. |
+| RTP Audio (Opus) | `0x80ef` / `0x806f` | Same RTP V2 header. `0xef` = Marker + PT 111 (Opus, standard WebRTC audio). `0x6f` = no Marker + PT 111. |
+| RTP Audio (G.711) | `0x8080` / `0x8000` | Same RTP V2 header. `0x80` = Marker + PT 0 (PCMU/G.711). `0x00` = no Marker + PT 0. Classic telephony. Payload is always 160 bytes (20ms at 8kHz). |
+| SRTP | Same as RTP | Identical RTP header. DPI cannot distinguish from plain RTP by header alone. Difference: 10-byte HMAC-SHA1 authentication tag appended after payload. Signature = RTP header + larger payload to account for auth tag. |
+| ZRTP | `0x10005a525450` | `0x1000` = RTP extension bit pattern (not real RTP). `0x5a525450` = ASCII "ZRTP" magic cookie (RFC 6189). Followed by 2-byte length, 4-byte SSRC, then message type (e.g., `Hello   ` = `0x48656c6c6f202020`). |
+| SIP INVITE | `0x494e5649544520736970` | ASCII for `INVITE sip` - call initiation request. Same structure as SIP REGISTER but different method verb. |
+| WebRTC bundle | STUN + DTLS + RTP | Not a single protocol - a multiplexed sequence. Real WebRTC starts with STUN Binding (connectivity check), then DTLS handshake (key exchange), then SRTP media. Use i1=STUN, i2=DTLS, i3=RTP to mimic this exact sequence. First byte distinguishes: `0x00`-`0x03` = STUN, `0x14`-`0x19` = DTLS, `0x80`-`0xFF` = RTP/RTCP. |
+| Steam A2S | `0xffffffff54` | `0xffffffff` = single-packet header (-1 as int32), `0x54` = 'T' byte (A2S_INFO request type). Followed by null-terminated string "Source Engine Query". All Valve Source games (CS2, Dota 2, TF2, Rust, etc.) respond to this. |
+| ENet | `0xffff0000...0c02` | First 2 bytes = peerID (`0xffff` for connect). Next 2 bytes = sent time. Then command header: `0x0c` = CONNECT command (reliable + needs ack flags). `0x02` = channel. Followed by seq number, data, MTU, window size, etc. |
+| BT UDP Tracker | `0x0000041727101980` | 8-byte magic constant (BEP 15). Every BitTorrent UDP tracker connect starts with this. Followed by 4-byte action (`0x00000000` = connect) and 4-byte random transaction ID. |
+| BT DHT (KRPC) | `0x64313a61` | ASCII for `d1:a` - start of a bencoded dictionary. All DHT queries are bencoded dicts starting with `d`. A ping query is `d1:ad2:id20:<20 random bytes>e1:q4:ping1:t2:<2 bytes>1:y1:qe`. |
+| uTP | `0x41` | First byte = (type << 4) OR version. `0x41` = ST_SYN (type=4) + version 1. uTP SYN initiates a connection. Followed by extension byte, connection ID, timestamp, timestamp diff, window size, seq number. |
 
 ### Ready-to-Use Configuration Sets
 
-Three complete parameter sets. All H ranges are non-overlapping. Copy as-is for both client and server.
+Nine complete parameter sets. All H ranges are non-overlapping within each set. Copy as-is for both client and server.
 
 | Parameter | Set A: QUIC (recommended) | Set B: DNS (max compat) | Set C: STUN (video cover) |
 |-----------|--------------------------|------------------------|--------------------------|
@@ -282,6 +333,66 @@ Three complete parameter sets. All H ranges are non-overlapping. Copy as-is for 
 | i4 | | | |
 | i5 | | | |
 | Server port | 443 | 53 or 5353 | 3478 or 19302 |
+
+| Parameter | Set D: SRT (live streaming) | Set E: MPEG-TS (IPTV) |
+|-----------|---------------------------|----------------------|
+| Jc | 4 | 3 |
+| Jmin | 60 | 100 |
+| Jmax | 600 | 1000 |
+| S1 | 72 | 80 |
+| S2 | 130 | 140 |
+| S3 | 28 | 20 |
+| S4 | 16 | 20 |
+| H1 | 1500000000-1500000300 | 2000000000-2000000200 |
+| H2 | 1600000000-1600000300 | 2100000000-2100000200 |
+| H3 | 1700000000-1700000010 | 2200000000-2200000010 |
+| H4 | 1800000000-1900000000 | 2300000000-2400000000 |
+| i1 | `<b 0x80000000><r 4><t><b 0x00000000><b 0x00000004><r 4><r 100>` | `<b 0x471fff10><r 184><b 0x471fff10><r 184><b 0x471fff10><r 184>` |
+| i2 | `<b 0x80000000><r 4><t><b 0x00000000><b 0x00000005><r 4><r 80>` | |
+| i3 | | |
+| i4 | | |
+| i5 | | |
+| Server port | 9000 or 9001 | 1234 or 5000 |
+
+| Parameter | Set F: WebRTC video call (best stealth) | Set G: VoIP / SIP call |
+|-----------|----------------------------------------|----------------------|
+| Jc | 5 | 4 |
+| Jmin | 50 | 40 |
+| Jmax | 600 | 400 |
+| S1 | 64 | 52 |
+| S2 | 140 | 110 |
+| S3 | 30 | 20 |
+| S4 | 12 | 8 |
+| H1 | 2500000000-2500000400 | 2800000000-2800000300 |
+| H2 | 2600000000-2600000400 | 2900000000-2900000300 |
+| H3 | 2700000000-2700000010 | 3000000000-3000000010 |
+| H4 | 3100000000-3200000000 | 3300000000-3400000000 |
+| i1 | `<b 0x000100002112a442><r 12><r 50>` | `<b 0x494e5649544520736970><rc 12><b 0x3a><rd 4><b 0x20534950><r 80>` |
+| i2 | `<b 0x16fefd0000000000000000><r 2><b 0x01><r 3><b 0xfefd><r 32><b 0x00><rc 4><r 100>` | `<b 0x80ef><r 2><t><r 4><r 80>` |
+| i3 | `<b 0x80e0><r 2><t><r 4><r 200>` | `<b 0x80c8><r 2><r 4><r 40>` |
+| i4 | | |
+| i5 | | |
+| Server port | 443 or 3478 | 5060 |
+
+| Parameter | Set H: BitTorrent (P2P cover) | Set I: Gaming (Steam/ENet) |
+|-----------|------------------------------|---------------------------|
+| Jc | 4 | 5 |
+| Jmin | 50 | 40 |
+| Jmax | 800 | 600 |
+| S1 | 60 | 52 |
+| S2 | 120 | 100 |
+| S3 | 24 | 20 |
+| S4 | 10 | 8 |
+| H1 | 3500000000-3500000400 | 3700000000-3700000500 |
+| H2 | 3550000000-3550000400 | 3800000000-3800000500 |
+| H3 | 3600000000-3600000010 | 3900000000-3900000010 |
+| H4 | 3650000000-3750000000 | 4000000000-4100000000 |
+| i1 | `<b 0x0000041727101980><b 0x00000000><r 4><r 50>` | `<b 0xffffffff54536f7572636520456e67696e6520517565727900><r 50>` |
+| i2 | `<b 0x41000000><r 2><t><r 4><r 4><r 2><r 50>` | `<b 0xffff0000><t><b 0x0c><b 0x02><r 2><b 0x00><r 1><r 2><r 2><b 0xffff><r 4><r 4><r 100>` |
+| i3 | | |
+| i4 | | |
+| i5 | | |
+| Server port | 6881 or 1337 | 27015 or 7777 |
 
 ---
 
