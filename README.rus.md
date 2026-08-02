@@ -8,18 +8,18 @@
 Проект зародился после того как используемый мной до этого образ [https://hub.docker.com/r/metaligh/amneziawg](https://hub.docker.com/r/metaligh/amneziawg)  перестал работать с последней версией модуля ядра AmneziaWG: поменялись входные параметры и упакованные в образ скрипты перестали работать. Исходников образа не нашлось - тогда и было решено пересобрать с нуля, а если уж пересобирать с нуля - то почему бы не попробовать сделать rootless.
 Каждый из скриптов писался отдельно с прицелом на возможную автоматизацию, структура скриптов местами разная - честно говоря, под конец автор уже немного подзадолбался и включил ленивую жопу :) Да, каждый скрипт может использоваться отдельно от прочих (например - для массового создания пользователей) - требуемые параметры запуска перечислены в комментариях внутри скриптов. Автор пытался сделать вывод информации максимально подробным, чтобы облегчить сопровождение для новичков.
 Замечание касательно размера образа - основная часть весит не более 40МБ, но `coredns` сам по себе добавляет более 70МБ сверху - при этом он совершенно опционален, если для пользователей не требуется разрешение имён средствами самого сервера - `coredns` можно убрать из списка пакетов на установку и пересобрать образ (в таком случае убедитесь, что переменная `DNS_BUILTIN` не установлена в `true` при запуске контейнера).
-Тестировалось и отлаживалось на Ubuntu 24.04.
+Тестировалось и отлаживалось на Ubuntu 24.04 и 26.04
 
 Проект выпущен под шуточной лицензией [IDGAF](LICENSE.txt): вы вольны делать всё, что вздумается - автору до лампочки :)
 ### Быстрый старт для ленивых (но пререквизиты ниже обязательны)
 Взять готовый образ (пока не заливал):
 ```bash
-podman pull amneziawg-rootless:latest
+podman pull docker.io/andrico21/amneziawg-rootless
 podman volume create amneziawg-cfg
 
 podman run --detach --name awg-rootless --publish 3400:51820/udp -v amneziawg-cfg:/etc/amnezia/amneziawg/ \
- --cap-add net_admin --sysctl net.ipv4.conf.all.src_valid_mark=1 --sysctl net.ipv4.ip_forward=1 \
- --env SERVERURL="some.lab.host" --env SERVERPORT="4430" amneziawg-rootless:latest
+ --cap-add net_admin --sysctl net.ipv4.conf.all.src_valid_mark=1 --sysctl net.ipv4.ip_forward=1 --sysctl net.ipv4.ip_unprivileged_port_start=53 \
+ --env SERVERURL="some.lab.host" --env SERVERPORT="4430" docker.io/andrico21/amneziawg-rootless
 
 podman exec -it awg-rootless /bin/bash
 menu.sh
@@ -72,15 +72,15 @@ mkdir -p ~/.config/containers/systemd/
 
 Указать внешний адрес сервера и доступный извне порт в переменных `SERVERURL` и `SERVERPORT`. Внутри контейнера приложение использует стандартный порт `51820/udp` port - нужно лишь определить внешний, прописываемый в пользовательских конфигах.
 ```bash
-podman pull amneziawg-rootless:latest
+podman pull docker.io/andrico21/amneziawg-rootless
 podman volume create amneziawg-cfg
 
 podman run --detach --name awg-rootless --publish 4450:51820/udp \
  --mount=type=volume,source=amnez-test,destination=/etc/amnezia/amneziawg/,readonly=false,nodev,noexec,nosuid,chown=true \
  --cap-drop all --cap-add net_admin --security-opt no-new-privileges --read-only \
- --sysctl net.ipv4.conf.all.src_valid_mark=1 --sysctl net.ipv4.ip_forward=1 \
+ --sysctl net.ipv4.conf.all.src_valid_mark=1 --sysctl net.ipv4.ip_forward=1 --sysctl net.ipv4.ip_unprivileged_port_start=53 \
  --env SERVERURL="myserver.google.com" --env SERVERPORT=4450 --env DNS_BUILTIN="true" \
- --env WG_INTERNAL_SUBNET="192.168.254.0/24" --env WG_CUSTOM_MTU=1320 amneziawg-rootless:latest
+ --env WG_INTERNAL_SUBNET="192.168.254.0/24" --env WG_CUSTOM_MTU=1320 docker.io/andrico21/amneziawg-rootless
 ```
 Логи контейнера:
 ```bash
@@ -119,13 +119,13 @@ podman exec -it awg-rootless /bin/bash
 [Container]
 ContainerName=awg-rootless
 Environment=SERVERURL=myserver.google.com SERVERPORT=4450
-Image=amneziawg-rootless:latest
+Image=docker.io/andrico21/amneziawg-rootless
 #PodmanArgs=--cpus 0.25 --memory 45mb
 #Pull=newer
 
 # networking
 PublishPort=4450:51820/udp
-Sysctl=net.ipv4.conf.all.src_valid_mark=1 net.ipv4.ip_forward=1
+Sysctl=net.ipv4.conf.all.src_valid_mark=1 net.ipv4.ip_forward=1 net.ipv4.ip_unprivileged_port_start=53
 
 # storage
 Mount=type=volume,source=amnez-test,destination=/etc/amnezia/amneziawg/,readonly=false,nodev,noexec,nosuid,chown=true
@@ -179,6 +179,6 @@ podman exec awg-rootless awg_users2json.sh
 
 Не работает со штатной `pasta` из поставки Ubuntu 24.04 - убито несколько дней на траблшутинг, потом выяснилось, что с последней `pasta` всё же работает, если собрать из исходников - заведена issue https://github.com/containers/podman/issues/27541
 ```bash
-podman run --detach --replace --name amnez-test --rm --network "pasta:-I,tap0,-U,auto,-u,3400:51820" -v amnez-test:/etc/amnezia/amneziawg/ --cap-add net_admin --sysctl net.ipv4.conf.all.src_valid_mark=1 --sysctl net.ipv4.ip_forward=1 amneziawg-rootless:latest
+podman run --detach --replace --name amnez-test --rm --network "pasta:-I,tap0,-U,auto,-u,3400:51820" -v amnez-test:/etc/amnezia/amneziawg/ --cap-add net_admin --sysctl net.ipv4.conf.all.src_valid_mark=1 --sysctl net.ipv4.ip_forward=1 --sysctl net.ipv4.ip_unprivileged_port_start=53 docker.io/andrico21/amneziawg-rootless:latest
 ```
 Со `slirp4netns` работает, от `pasta` ожидалось больше производительности, но в текущей версии с ней нормально не работает.
