@@ -23,7 +23,7 @@ podman volume create amneziawg-cfg
 
 podman run --detach --name awg-rootless --publish 3400:51820/udp -v amneziawg-cfg:/etc/amnezia/amneziawg/ \
  --cap-add net_admin --sysctl net.ipv4.conf.all.src_valid_mark=1 --sysctl net.ipv4.ip_forward=1 \
- --env SERVERURL="some.lab.host" SERVERPORT="4430" amneziawg-rootless:latest
+ --env SERVERURL="some.lab.host" --env SERVERPORT="4430" amneziawg-rootless:latest
 
 podman exec -it awg-rootless /bin/bash
 menu.sh
